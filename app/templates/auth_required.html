@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Zugang erforderlich — /b/{{ slug }}{% endblock %}
+
+{% block body %}
+<div class="flex flex-col items-center justify-center min-h-screen px-4">
+  <div class="max-w-md w-full space-y-6 text-center">
+    <h1 class="text-2xl font-bold text-mint font-mono">/b/{{ slug }}</h1>
+    <p class="text-accent/70">Dieses Board ist durch einen Key geschützt.</p>
+
+    <form onsubmit="openWithKey(event)" class="bg-card border border-border rounded-xl p-6 space-y-4 text-left">
+      <label class="block text-sm text-accent/60">Board-Key</label>
+      <input
+        id="key-input"
+        type="text"
+        placeholder="Schlüssel eingeben…"
+        class="w-full bg-bg border border-border rounded-lg px-3 py-2 font-mono text-accent focus:outline-none focus:border-mint transition"
+        autofocus
+      />
+      <button
+        type="submit"
+        class="w-full bg-mint text-bg font-semibold py-2 rounded-lg hover:bg-mint/80 transition"
+      >
+        Zugang
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+function openWithKey(e) {
+  e.preventDefault()
+  const key = document.getElementById('key-input').value.trim()
+  if (key) window.location.href = '/b/{{ slug }}?key=' + encodeURIComponent(key)
+}
+</script>
+{% endblock %}
