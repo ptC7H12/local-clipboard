@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}LAN Clipboard{% endblock %}
+
+{% block body %}
+<div class="flex flex-col items-center justify-center min-h-screen px-4">
+  <div class="max-w-xl w-full text-center space-y-6">
+    <h1 class="text-3xl font-bold text-mint font-mono">LAN Clipboard</h1>
+    <p class="text-accent/70 text-lg">
+      Teile Text und Screenshots blitzschnell im lokalen Netzwerk.
+      Kein Account, keine externe Abhängigkeit.
+    </p>
+
+    <div class="bg-card border border-border rounded-xl p-6 text-left space-y-4">
+      <h2 class="text-mint font-semibold">Wie es funktioniert</h2>
+      <ol class="space-y-2 text-accent/80 list-decimal list-inside">
+        <li>Board-URL aufrufen, z.&nbsp;B. <code class="font-mono text-mint">/b/work</code></li>
+        <li>Text einfügen oder Screenshot pasten (Strg+V)</li>
+        <li>Andere PCs öffnen dieselbe URL — Inhalte erscheinen sofort</li>
+      </ol>
+    </div>
+
+    <div class="bg-card border border-border rounded-xl p-6 text-left space-y-3">
+      <h2 class="text-mint font-semibold">Board öffnen</h2>
+      <form onsubmit="goToBoard(event)" class="flex gap-2">
+        <span class="text-accent/50 self-center font-mono">/b/</span>
+        <input
+          id="slug-input"
+          type="text"
+          placeholder="mein-board"
+          pattern="[a-z0-9][a-z0-9_-]{1,49}"
+          title="Nur Kleinbuchstaben, Zahlen, Bindestrich und Unterstrich"
+          class="flex-1 bg-bg border border-border rounded-lg px-3 py-2 font-mono text-accent focus:outline-none focus:border-mint transition"
+          autofocus
+        />
+        <button
+          type="submit"
+          class="bg-mint text-bg font-semibold px-4 py-2 rounded-lg hover:bg-mint/80 transition"
+        >
+          Öffnen
+        </button>
+      </form>
+    </div>
+
+    <p class="text-accent/40 text-sm">
+      Ein Board wird automatisch angelegt, sobald der erste Eintrag erstellt wird.
+    </p>
+  </div>
+</div>
+
+<script>
+function goToBoard(e) {
+  e.preventDefault()
+  const slug = document.getElementById('slug-input').value.trim()
+  if (slug) window.location.href = '/b/' + encodeURIComponent(slug)
+}
+</script>
+{% endblock %}

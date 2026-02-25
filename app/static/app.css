@@ -1,0 +1,43 @@
+/* LAN Clipboard — custom styles (Tailwind handles the heavy lifting) */
+
+/* Smooth scrollbar in history list */
+#history-list {
+  scroll-behavior: smooth;
+}
+
+/* Entry cards: subtle hover lift */
+.entry-card {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.entry-card:hover {
+  border-color: #2e2e2e;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* Textarea: no resize handle on small screens */
+@media (max-width: 640px) {
+  textarea {
+    resize: none;
+  }
+}
+
+/* Scrollbar styling (WebKit) */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f0f0f;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+/* Pre-wrap for text entries */
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

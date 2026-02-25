@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}/b/{{ slug }} — LAN Clipboard{% endblock %}
+
+{% block body %}
+{# ── Full-page layout: sticky header + input + scrollable history ────────── #}
+<div class="flex flex-col h-screen max-w-[800px] mx-auto px-3 md:px-0">
+
+  {# ── Header ─────────────────────────────────────────────────────────────── #}
+  <header class="sticky top-0 z-10 bg-bg border-b border-border py-3 flex items-center gap-3">
+    <a href="/" class="text-accent/40 hover:text-accent transition text-sm">←</a>
+    <span class="font-mono text-mint font-bold text-lg flex-1">/b/{{ slug }}</span>
+
+    {# Auth controls #}
+    <div x-data="authPanel('{{ slug }}', {{ key | tojson }}, {{ has_key | tojson }})" class="flex items-center gap-2">
+
+      {# Generate / Manage key button #}
+      <button
+        @click="toggleKeyPanel()"
+        class="text-xs border border-border rounded-lg px-3 py-1.5 hover:border-mint/50 hover:text-mint transition"
+        :title="hasKey ? 'Key verwalten' : 'Board sichern'"
+      >
+        <span x-text="hasKey ? '🔒 Key' : '🔓 Key'"></span>
+      </button>
+
+      {# Copy URL button #}
+      <button
+        @click="copyURL()"
+        class="text-xs border border-border rounded-lg px-3 py-1.5 hover:border-mint/50 hover:text-mint transition"
+        title="URL kopieren"
+        x-text="urlCopied ? 'Kopiert ✓' : 'URL kopieren'"
+      ></button>
+
+      {# Key panel #}
+      <div
+        x-show="showKeyPanel"
+        @click.outside="showKeyPanel = false"
+        class="absolute right-3 top-14 z-20 bg-card border border-border rounded-xl p-4 w-72 shadow-2xl space-y-3"
+        style="display:none"
+      >
+        <template x-if="!hasKey">
+          <div class="space-y-2">
+            <p class="text-xs text-accent/60">Board mit einem Key schützen. Der Key ist Teil der URL.</p>
+            <button
+              @click="generateKey()"
+              class="w-full bg-mint text-bg text-sm font-semibold py-2 rounded-lg hover:bg-mint/80 transition"
+            >Key generieren</button>
+          </div>
+        </template>
+        <template x-if="hasKey">
+          <div class="space-y-2">
+            <p class="text-xs text-accent/60">Board ist gesichert. Key-URL teilen:</p>
+            <code class="block text-xs font-mono text-mint break-all bg-bg rounded px-2 py-1" x-text="currentUrl"></code>
+            <div class="flex gap-2">
+              <button
+                @click="generateKey()"
+                class="flex-1 text-xs border border-border rounded-lg py-1.5 hover:border-mint/50 hover:text-mint transition"
+              >Neu generieren</button>
+              <button
+                @click="removeKey()"
+                class="flex-1 text-xs border border-border rounded-lg py-1.5 hover:border-red-400/50 hover:text-red-400 transition"
+              >Key entfernen</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </header>
+
+  {# ── Input area ──────────────────────────────────────────────────────────── #}
+  <div class="sticky top-[57px] z-10 bg-bg pt-3 pb-2 border-b border-border">
+    <div x-data="inputArea('{{ slug }}', {{ key | tojson }})" class="relative">
+      {# Upload overlay #}
+      <div
+        x-show="uploading"
+        class="absolute inset-0 z-10 bg-bg/80 rounded-xl flex items-center justify-center"
+        style="display:none"
+      >
+        <span class="text-mint font-mono text-sm animate-pulse">Uploading…</span>
+      </div>
+
+      {# Error message #}
+      <div
+        x-show="errorMsg"
+        x-text="errorMsg"
+        @click="errorMsg = ''"
+        class="mb-2 text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2 cursor-pointer"
+        style="display:none"
+      ></div>
+
+      <textarea
+        x-ref="textarea"
+        @paste="handlePaste($event)"
+        @keydown.ctrl.enter.prevent="submitText()"
+        @keydown.meta.enter.prevent="submitText()"
+        placeholder="Text hier einfügen oder Screenshot pasten…"
+        rows="3"
+        autofocus
+        class="w-full bg-card border border-border rounded-xl px-4 py-3 font-mono text-sm text-accent placeholder-accent/30 resize-none focus:outline-none focus:border-mint/60 transition"
+      ></textarea>
+
+      <div class="flex justify-between items-center mt-1.5">
+        <span class="text-xs text-accent/30">Strg+Enter zum Senden · Strg+V für Screenshot</span>
+        <button
+          @click="submitText()"
+          class="bg-mint text-bg text-sm font-semibold px-5 py-1.5 rounded-lg hover:bg-mint/80 transition disabled:opacity-50"
+          :disabled="uploading"
+        >Senden</button>
+      </div>
+    </div>
+  </div>
+
+  {# ── History list ────────────────────────────────────────────────────────── #}
+  <div class="flex-1 overflow-y-auto py-4">
+    <h2 class="text-xs text-accent/40 uppercase tracking-wider mb-3 px-1">Letzte Einträge</h2>
+    <div id="history-list" class="space-y-2">
+      {% for entry in entries %}
+        {% include "partials/entry.html" %}
+      {% else %}
+        <p class="text-center text-accent/30 text-sm py-12">Noch keine Einträge. Füge etwas ein!</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+
+{# ═══════════════════════════════════════════════════════════════════════════
+   Alpine.js Components
+   ═══════════════════════════════════════════════════════════════════════════ #}
+<script>
+// ── Input area component ──────────────────────────────────────────────────
+function inputArea(slug, key) {
+  return {
+    uploading: false,
+    errorMsg: '',
+
+    get keyParam() {
+      return key ? '?key=' + encodeURIComponent(key) : ''
+    },
+
+    async submitText() {
+      const text = this.$refs.textarea.value.trim()
+      if (!text || this.uploading) return
+      this.uploading = true
+      this.errorMsg = ''
+      try {
+        await this.postEntry({ type: 'text', content: text })
+        this.$refs.textarea.value = ''
+      } catch (e) {
+        this.errorMsg = 'Fehler beim Senden: ' + e.message
+      } finally {
+        this.uploading = false
+      }
+    },
+
+    async handlePaste(e) {
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault()
+          const blob = item.getAsFile()
+          if (blob.size > 5 * 1024 * 1024) {
+            this.errorMsg = 'Bild zu groß (max. 5 MB)'
+            return
+          }
+          this.uploading = true
+          this.errorMsg = ''
+          try {
+            const base64 = await toBase64(blob)
+            await this.postEntry({ type: 'image', content: base64, mime: item.type })
+          } catch (err) {
+            this.errorMsg = 'Upload fehlgeschlagen: ' + err.message
+          } finally {
+            this.uploading = false
+          }
+          return
+        }
+      }
+      // No image found → normal text paste, do nothing
+    },
+
+    async postEntry(payload) {
+      const url = `/b/${slug}/entries${this.keyParam}`
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'HX-Request': 'true',
+        },
+        body: JSON.stringify(payload),
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+        throw new Error(err.detail || resp.statusText)
+      }
+      // SSE will handle DOM update for other clients.
+      // For the submitting client: SSE event may arrive before or after the HTTP response.
+      // Parse the fragment and only insert if not already in the DOM (dedup).
+      const html = await resp.text()
+      const temp = document.createElement('div')
+      temp.innerHTML = html
+      const newEl = temp.firstElementChild
+      if (newEl && newEl.id && document.getElementById(newEl.id)) return  // SSE beat us
+      const list = document.getElementById('history-list')
+      // Remove empty-state placeholder if present
+      const empty = list.querySelector('p')
+      if (empty) empty.remove()
+      list.insertAdjacentHTML('afterbegin', html)
+      htmx.process(list.firstElementChild)
+    },
+  }
+}
+
+// ── Auth panel component ──────────────────────────────────────────────────
+function authPanel(slug, key, hasKey) {
+  return {
+    hasKey: hasKey,
+    currentKey: key,
+    showKeyPanel: false,
+    urlCopied: false,
+
+    get currentUrl() {
+      const base = window.location.origin + '/b/' + slug
+      return this.currentKey ? base + '?key=' + this.currentKey : base
+    },
+
+    toggleKeyPanel() {
+      this.showKeyPanel = !this.showKeyPanel
+    },
+
+    async generateKey() {
+      const keyParam = this.currentKey ? '?key=' + encodeURIComponent(this.currentKey) : ''
+      const resp = await fetch(`/b/${slug}/auth/generate${keyParam}`, { method: 'POST' })
+      if (!resp.ok) { alert('Fehler beim Generieren des Keys'); return }
+      const data = await resp.json()
+      this.currentKey = data.key
+      this.hasKey = true
+      // Redirect to new URL with key
+      window.location.href = '/b/' + slug + '?key=' + encodeURIComponent(data.key)
+    },
+
+    async removeKey() {
+      if (!this.currentKey) return
+      const resp = await fetch(
+        `/b/${slug}/auth?key=${encodeURIComponent(this.currentKey)}`,
+        { method: 'DELETE' }
+      )
+      if (!resp.ok) { alert('Fehler beim Entfernen des Keys'); return }
+      this.hasKey = false
+      this.currentKey = null
+      this.showKeyPanel = false
+      window.location.href = '/b/' + slug
+    },
+
+    async copyURL() {
+      await navigator.clipboard.writeText(this.currentUrl)
+      this.urlCopied = true
+      setTimeout(() => { this.urlCopied = false }, 2000)
+    },
+  }
+}
+
+// ── Utility: convert Blob to base64 ──────────────────────────────────────
+function toBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result.split(',')[1])
+    reader.onerror = () => reject(new Error('FileReader failed'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+// ── Utility: copy text to clipboard ──────────────────────────────────────
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent
+    btn.textContent = 'Kopiert ✓'
+    btn.classList.add('text-mint', 'border-mint/40')
+    setTimeout(() => {
+      btn.textContent = orig
+      btn.classList.remove('text-mint', 'border-mint/40')
+    }, 2000)
+  })
+}
+
+// ── SSE Realtime updates ──────────────────────────────────────────────────
+;(function () {
+  const slug = {{ slug | tojson }}
+  const key  = {{ key | tojson }}
+  const streamUrl = `/b/${slug}/stream${key ? '?key=' + encodeURIComponent(key) : ''}`
+  const source = new EventSource(streamUrl)
+
+  source.addEventListener('new_entry', (e) => {
+    const list = document.getElementById('history-list')
+    // Remove empty-state placeholder
+    const empty = list.querySelector('p')
+    if (empty) empty.remove()
+    // Avoid duplicates (we may have added it optimistically via postEntry)
+    const temp = document.createElement('div')
+    temp.innerHTML = e.data
+    const newEl = temp.firstElementChild
+    if (newEl && newEl.id && document.getElementById(newEl.id)) return
+    list.insertAdjacentHTML('afterbegin', e.data)
+    htmx.process(list.firstElementChild)
+  })
+
+  source.addEventListener('delete_entry', (e) => {
+    const { id } = JSON.parse(e.data)
+    document.getElementById('entry-' + id)?.remove()
+  })
+
+  source.onerror = () => {
+    // EventSource reconnects automatically — no manual handling needed
+  }
+})()
+</script>
+{% endblock %}

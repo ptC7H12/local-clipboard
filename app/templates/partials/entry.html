@@ -1,0 +1,96 @@
+{# Einzelner Entry — wird sowohl per SSR in board.html als auch als HTMX-Fragment gerendert.
+   Kontext: entry (Entry), slug (str), key (str|None) #}
+{% set key_param = ('?key=' + key) if key else '' %}
+<div
+  id="entry-{{ entry.id }}"
+  class="entry-card bg-card border border-border rounded-xl p-4 flex gap-3 group"
+>
+  {% if entry.type == "text" %}
+    {# ── Text Entry ─────────────────────────────────────────────────── #}
+    <div class="flex-shrink-0 w-7 h-7 rounded-md bg-mint/10 text-mint flex items-center justify-center text-sm font-bold select-none">T</div>
+    <div class="flex-1 min-w-0">
+      <pre class="font-mono text-sm text-accent whitespace-pre-wrap break-words leading-relaxed">{{ entry.content }}</pre>
+      <div class="mt-2 flex items-center gap-2">
+        <span class="text-xs text-accent/40">{{ entry.created_at[:16].replace('T', ' ') }}</span>
+        <button
+          onclick="copyText(this, {{ entry.content | tojson }})"
+          class="ml-auto text-xs text-accent/50 hover:text-mint transition px-2 py-0.5 rounded border border-border hover:border-mint/40"
+        >Kopieren</button>
+        <button
+          hx-delete="/b/{{ slug }}/entries/{{ entry.id }}{{ key_param }}"
+          hx-confirm="Eintrag löschen?"
+          hx-target="#entry-{{ entry.id }}"
+          hx-swap="outerHTML"
+          class="text-xs text-accent/30 hover:text-red-400 transition px-2 py-0.5 rounded border border-border hover:border-red-400/40"
+        >✕</button>
+      </div>
+    </div>
+
+  {% else %}
+    {# ── Image Entry ─────────────────────────────────────────────────── #}
+    <div class="flex-shrink-0 w-7 h-7 rounded-md bg-mint/10 text-mint flex items-center justify-center text-sm font-bold select-none">&#128247;</div>
+    <div class="flex-1 min-w-0" x-data="{ open: false }">
+      <div class="flex gap-3 items-start">
+        {% if entry.thumbnail %}
+          <button @click="open = true" class="flex-shrink-0 focus:outline-none" title="Vollbild öffnen">
+            <img
+              src="data:image/jpeg;base64,{{ entry.thumbnail }}"
+              alt="Vorschau"
+              class="max-h-[120px] rounded-lg border border-border hover:border-mint/50 transition cursor-zoom-in"
+            />
+          </button>
+        {% else %}
+          <div class="w-20 h-20 rounded-lg bg-border flex items-center justify-center text-accent/30 text-xs">kein Bild</div>
+        {% endif %}
+
+        <div class="flex-1 min-w-0 space-y-1">
+          <div class="text-sm text-accent/70 truncate font-mono">
+            clipboard_{{ entry.created_at[:10] }}{% if entry.mime %}.{{ entry.mime.split('/')[-1] }}{% endif %}
+          </div>
+          {% if entry.file_size %}
+            <div class="text-xs text-accent/40">{{ (entry.file_size / 1024) | round(1) }} KB</div>
+          {% endif %}
+          <div class="text-xs text-accent/40">{{ entry.created_at[11:16] }} Uhr</div>
+
+          <div class="flex gap-2 pt-1">
+            <a
+              href="/b/{{ slug }}/entries/{{ entry.id }}/download{{ key_param }}"
+              class="text-xs text-accent/50 hover:text-mint transition px-2 py-0.5 rounded border border-border hover:border-mint/40"
+              title="Herunterladen"
+            >&#11015; Download</a>
+            <button
+              hx-delete="/b/{{ slug }}/entries/{{ entry.id }}{{ key_param }}"
+              hx-confirm="Eintrag löschen?"
+              hx-target="#entry-{{ entry.id }}"
+              hx-swap="outerHTML"
+              class="text-xs text-accent/30 hover:text-red-400 transition px-2 py-0.5 rounded border border-border hover:border-red-400/40"
+            >✕</button>
+          </div>
+        </div>
+      </div>
+
+      {# Fullscreen modal #}
+      <div
+        x-show="open"
+        x-transition
+        @click.self="open = false"
+        @keydown.escape.window="open = false"
+        class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+        style="display:none"
+      >
+        <div class="relative max-w-full max-h-full">
+          <img
+            src="/b/{{ slug }}/entries/{{ entry.id }}/image{{ key_param }}"
+            alt="Vollbild"
+            class="max-w-[90vw] max-h-[90vh] rounded-xl border border-border object-contain"
+            loading="lazy"
+          />
+          <button
+            @click="open = false"
+            class="absolute top-2 right-2 text-white bg-black/60 rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/80 transition text-lg"
+          >✕</button>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>

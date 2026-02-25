@@ -1,0 +1,8 @@
+# Dev overrides — live reload and volume mounts for fast iteration.
+# This file is picked up automatically by docker compose (no -f flag needed).
+services:
+  app:
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./app:/app/app          # Live-reload on code changes
+      - image_data:/app/data/images
