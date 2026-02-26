@@ -254,9 +254,14 @@ function authPanel(slug, key, hasKey) {
     },
 
     async copyURL() {
-      await copyToClipboard(this.currentUrl)
-      this.urlCopied = true
-      setTimeout(() => { this.urlCopied = false }, 2000)
+      try {
+        await copyToClipboard(this.currentUrl)
+        this.urlCopied = true
+        setTimeout(() => { this.urlCopied = false }, 2000)
+        showToast('URL in Zwischenablage kopiert')
+      } catch (e) {
+        showToast('Kopieren fehlgeschlagen')
+      }
     },
   }
 }
@@ -290,6 +295,27 @@ function copyToClipboard(text) {
   })
 }
 
+// ── Toast notification ────────────────────────────────────────────────────
+function showToast(msg) {
+  let container = document.getElementById('toast-container')
+  if (!container) {
+    container = document.createElement('div')
+    container.id = 'toast-container'
+    container.style.cssText = 'position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none'
+    document.body.appendChild(container)
+  }
+  const toast = document.createElement('div')
+  toast.textContent = msg
+  toast.style.cssText = 'background:#065f46;color:#6ee7b7;padding:8px 16px;border-radius:8px;font-size:13px;font-family:system-ui,sans-serif;opacity:0;transform:translateX(20px);transition:all .3s ease;pointer-events:auto;border:1px solid #064e3b'
+  container.appendChild(toast)
+  requestAnimationFrame(() => { toast.style.opacity = '1'; toast.style.transform = 'translateX(0)' })
+  setTimeout(() => {
+    toast.style.opacity = '0'
+    toast.style.transform = 'translateX(20px)'
+    setTimeout(() => toast.remove(), 300)
+  }, 2000)
+}
+
 function copyText(btn, text) {
   copyToClipboard(text).then(() => {
     const orig = btn.textContent
@@ -299,6 +325,9 @@ function copyText(btn, text) {
       btn.textContent = orig
       btn.classList.remove('text-mint', 'border-mint/40')
     }, 2000)
+    showToast('In Zwischenablage kopiert')
+  }).catch(() => {
+    showToast('Kopieren fehlgeschlagen')
   })
 }
 
