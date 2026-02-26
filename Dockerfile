@@ -13,20 +13,21 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
 
-# Download vendor JS assets — bundled into the image so the app works offline in LAN.
+# Download vendor JS assets to /app/vendor/ — outside the app source tree so that
+# a bind-mount of ./app:/app/app (used in development) does not shadow these files.
 # The image is built once with internet access; after that no external connectivity needed.
-RUN mkdir -p /app/app/static/vendor /app/app/static/fonts && \
-    curl -fsSL "https://unpkg.com/htmx.org/dist/htmx.min.js"        -o /app/app/static/vendor/htmx.min.js  && \
-    curl -fsSL "https://unpkg.com/alpinejs/dist/cdn.min.js"          -o /app/app/static/vendor/alpine.min.js && \
-    curl -fsSL "https://cdn.tailwindcss.com"                         -o /app/app/static/vendor/tailwind.js
+RUN mkdir -p /app/vendor /app/fonts && \
+    curl -fsSL "https://unpkg.com/htmx.org/dist/htmx.min.js"        -o /app/vendor/htmx.min.js  && \
+    curl -fsSL "https://unpkg.com/alpinejs/dist/cdn.min.js"          -o /app/vendor/alpine.min.js && \
+    curl -fsSL "https://cdn.tailwindcss.com"                         -o /app/vendor/tailwind.js
 
 # Download JetBrains Mono (WOFF2) — served locally for LAN-only operation
 RUN curl -fsSL \
       "https://github.com/JetBrains/JetBrainsMono/raw/master/fonts/webfonts/JetBrainsMono-Regular.woff2" \
-      -o /app/app/static/fonts/JetBrainsMono-Regular.woff2 && \
+      -o /app/fonts/JetBrainsMono-Regular.woff2 && \
     curl -fsSL \
       "https://github.com/JetBrains/JetBrainsMono/raw/master/fonts/webfonts/JetBrainsMono-Bold.woff2" \
-      -o /app/app/static/fonts/JetBrainsMono-Bold.woff2
+      -o /app/fonts/JetBrainsMono-Bold.woff2
 
 # Create image storage directory (overridden by Docker volume in production)
 RUN mkdir -p /app/data/images

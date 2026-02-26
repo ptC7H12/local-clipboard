@@ -52,6 +52,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="LAN Clipboard", lifespan=lifespan)
 
+# Vendor assets and fonts are baked into the Docker image at /app/vendor/ and /app/fonts/
+# (outside the app source tree, so a dev bind-mount of ./app:/app/app never shadows them).
+# These mounts must come BEFORE the generic /static mount so they take routing precedence.
+app.mount("/static/vendor", StaticFiles(directory="/app/vendor"), name="vendor")
+app.mount("/static/fonts", StaticFiles(directory="/app/fonts"), name="fonts")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
