@@ -79,7 +79,8 @@ async def require_auth(slug: str, key: Optional[str]) -> None:
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    boards = await rc.list_boards()
+    return templates.TemplateResponse("index.html", {"request": request, "boards": boards})
 
 
 # ---------------------------------------------------------------------------
