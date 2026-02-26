@@ -254,7 +254,7 @@ function authPanel(slug, key, hasKey) {
     },
 
     async copyURL() {
-      await navigator.clipboard.writeText(this.currentUrl)
+      await copyToClipboard(this.currentUrl)
       this.urlCopied = true
       setTimeout(() => { this.urlCopied = false }, 2000)
     },
@@ -272,8 +272,26 @@ function toBase64(blob) {
 }
 
 // ── Utility: copy text to clipboard ──────────────────────────────────────
+// navigator.clipboard requires a secure context (HTTPS / localhost).
+// Over plain HTTP in a LAN we fall back to the legacy execCommand approach.
+function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text)
+  }
+  return new Promise((resolve, reject) => {
+    const el = document.createElement('textarea')
+    el.value = text
+    el.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+    document.body.appendChild(el)
+    el.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(el)
+    ok ? resolve() : reject(new Error('execCommand failed'))
+  })
+}
+
 function copyText(btn, text) {
-  navigator.clipboard.writeText(text).then(() => {
+  copyToClipboard(text).then(() => {
     const orig = btn.textContent
     btn.textContent = 'Kopiert ✓'
     btn.classList.add('text-mint', 'border-mint/40')
