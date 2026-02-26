@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -154,6 +155,64 @@ async def publish_event(slug: str, event_type: str, data: str) -> None:
     """Publish an event to all SSE subscribers for a board."""
     message = json.dumps({"event": event_type, "data": data})
     await redis.publish(_channel(slug), message)
+
+
+# ---------------------------------------------------------------------------
+# Board listing
+# ---------------------------------------------------------------------------
+
+async def list_boards() -> list[dict]:
+    """
+    Return all boards that have at least one entry, sorted by most recent
+    activity. Each dict contains: slug, entry_count, last_activity (datetime
+    or None), has_key (bool).
+    """
+    slugs: list[str] = []
+    cursor = 0
+    while True:
+        cursor, keys = await redis.scan(cursor, match="board:*:entries", count=100)
+        for key in keys:
+            slug = key[len("board:"):-len(":entries")]
+            slugs.append(slug)
+        if cursor == 0:
+            break
+
+    if not slugs:
+        return []
+
+    # Batch all per-board queries in a single pipeline
+    async with redis.pipeline(transaction=False) as pipe:
+        for slug in slugs:
+            await pipe.zcard(_entries_key(slug))
+            await pipe.zrevrange(_entries_key(slug), 0, 0, withscores=True)
+            await pipe.exists(_authkey_key(slug))
+        results = await pipe.execute()
+
+    boards = []
+    for i, slug in enumerate(slugs):
+        count     = results[i * 3]
+        top       = results[i * 3 + 1]   # [(member, score)] or []
+        has_key   = bool(results[i * 3 + 2])
+
+        if count == 0:
+            continue
+
+        last_ts = float(top[0][1]) if top else None
+        last_activity = (
+            datetime.fromtimestamp(last_ts, tz=timezone.utc) if last_ts else None
+        )
+        boards.append({
+            "slug": slug,
+            "entry_count": count,
+            "last_activity": last_activity,
+            "has_key": has_key,
+        })
+
+    boards.sort(
+        key=lambda b: b["last_activity"] or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )
+    return boards
 
 
 # ---------------------------------------------------------------------------

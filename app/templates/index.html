@@ -3,25 +3,50 @@
 {% block title %}LAN Clipboard{% endblock %}
 
 {% block body %}
-<div class="flex flex-col items-center justify-center min-h-screen px-4">
-  <div class="max-w-xl w-full text-center space-y-6">
-    <h1 class="text-3xl font-bold text-mint font-mono">LAN Clipboard</h1>
-    <p class="text-accent/70 text-lg">
-      Teile Text und Screenshots blitzschnell im lokalen Netzwerk.
-      Kein Account, keine externe Abhängigkeit.
-    </p>
-
-    <div class="bg-card border border-border rounded-xl p-6 text-left space-y-4">
-      <h2 class="text-mint font-semibold">Wie es funktioniert</h2>
-      <ol class="space-y-2 text-accent/80 list-decimal list-inside">
-        <li>Board-URL aufrufen, z.&nbsp;B. <code class="font-mono text-mint">/b/work</code></li>
-        <li>Text einfügen oder Screenshot pasten (Strg+V)</li>
-        <li>Andere PCs öffnen dieselbe URL — Inhalte erscheinen sofort</li>
-      </ol>
+<div class="flex flex-col items-center min-h-screen px-4 py-12">
+  <div class="max-w-xl w-full space-y-6">
+    <div class="text-center space-y-2">
+      <h1 class="text-3xl font-bold text-mint font-mono">LAN Clipboard</h1>
+      <p class="text-accent/70">
+        Teile Text und Screenshots blitzschnell im lokalen Netzwerk.
+        Kein Account, keine externe Abhängigkeit.
+      </p>
     </div>
 
-    <div class="bg-card border border-border rounded-xl p-6 text-left space-y-3">
-      <h2 class="text-mint font-semibold">Board öffnen</h2>
+    {# ── Aktive Boards ──────────────────────────────────────────────── #}
+    {% if boards %}
+    <div class="bg-card border border-border rounded-xl p-5 space-y-3">
+      <h2 class="text-mint font-semibold text-sm uppercase tracking-wider">Aktive Boards</h2>
+      <ul class="space-y-2">
+        {% for board in boards %}
+        <li>
+          <a
+            href="/b/{{ board.slug }}"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-bg border border-transparent hover:border-border transition group"
+          >
+            <span class="text-accent/40 group-hover:text-mint transition text-sm select-none">
+              {% if board.has_key %}🔒{% else %}/b/{% endif %}
+            </span>
+            <span class="font-mono text-accent group-hover:text-mint transition font-medium flex-1">{{ board.slug }}</span>
+            <span class="text-xs text-accent/40 tabular-nums">
+              {{ board.entry_count }} {% if board.entry_count == 1 %}Eintrag{% else %}Einträge{% endif %}
+            </span>
+            <span class="text-xs text-accent/30 tabular-nums hidden sm:block">
+              {% if board.last_activity %}
+                {{ board.last_activity.strftime('%d.%m.%Y %H:%M') }}
+              {% endif %}
+            </span>
+            <span class="text-accent/30 group-hover:text-mint transition text-sm">→</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {# ── Neues Board ────────────────────────────────────────────────── #}
+    <div class="bg-card border border-border rounded-xl p-6 space-y-3">
+      <h2 class="text-mint font-semibold">Neues Board</h2>
       <form onsubmit="goToBoard(event)" class="flex gap-2">
         <span class="text-accent/50 self-center font-mono">/b/</span>
         <input
@@ -37,14 +62,23 @@
           type="submit"
           class="bg-mint text-bg font-semibold px-4 py-2 rounded-lg hover:bg-mint/80 transition"
         >
-          Öffnen
+          Erstellen
         </button>
       </form>
+      <p class="text-accent/40 text-xs">
+        Ein Board wird automatisch angelegt, sobald der erste Eintrag erstellt wird.
+      </p>
     </div>
 
-    <p class="text-accent/40 text-sm">
-      Ein Board wird automatisch angelegt, sobald der erste Eintrag erstellt wird.
-    </p>
+    {# ── Wie es funktioniert ────────────────────────────────────────── #}
+    <div class="bg-card border border-border rounded-xl p-5 space-y-3">
+      <h2 class="text-mint font-semibold text-sm uppercase tracking-wider">Wie es funktioniert</h2>
+      <ol class="space-y-2 text-accent/70 list-decimal list-inside text-sm">
+        <li>Board-Name eingeben oder oben ein aktives Board öffnen</li>
+        <li>Text einfügen oder Screenshot pasten (Strg+V)</li>
+        <li>Andere PCs öffnen dieselbe URL — Inhalte erscheinen sofort</li>
+      </ol>
+    </div>
   </div>
 </div>
 
