@@ -64,9 +64,7 @@ def _channel(slug: str) -> str:
 
 async def get_entries(slug: str) -> list[Entry]:
     """Return entries for a board, newest first."""
-    raw_members = await redis.zrange(
-        _entries_key(slug), 0, -1, withscores=False, rev=True
-    )
+    raw_members = await redis.zrevrange(_entries_key(slug), 0, -1)
     entries: list[Entry] = []
     for raw in raw_members:
         try:
