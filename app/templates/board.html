@@ -159,7 +159,10 @@ function inputArea(slug, key) {
       for (const item of items) {
         if (item.type.startsWith('image/')) {
           e.preventDefault()
+          // Read blob and type synchronously — DataTransferItem may be
+          // invalidated by the browser after any await.
           const blob = item.getAsFile()
+          if (!blob) continue
           if (blob.size > 5 * 1024 * 1024) {
             this.errorMsg = 'Bild zu groß (max. 5 MB)'
             return
@@ -167,8 +170,11 @@ function inputArea(slug, key) {
           this.uploading = true
           this.errorMsg = ''
           try {
-            const base64 = await toBase64(blob)
-            await this.postEntry({ type: 'image', content: base64, mime: item.type })
+            // Normalize to PNG via canvas — handles BMP, TIFF, WEBP, etc.
+            // that Windows clipboard may produce, and fixes browsers that
+            // clear item.type after the event ends.
+            const base64 = await imageToBase64Png(blob)
+            await this.postEntry({ type: 'image', content: base64, mime: 'image/png' })
           } catch (err) {
             this.errorMsg = 'Upload fehlgeschlagen: ' + err.message
           } finally {
@@ -274,6 +280,21 @@ function toBase64(blob) {
     reader.onerror = () => reject(new Error('FileReader failed'))
     reader.readAsDataURL(blob)
   })
+}
+
+// ── Utility: normalize any image Blob to a PNG base64 string ─────────────
+// Uses createImageBitmap + canvas so BMP, TIFF, WEBP etc. all become PNG.
+async function imageToBase64Png(blob) {
+  const bitmap = await createImageBitmap(blob)
+  const canvas = document.createElement('canvas')
+  canvas.width  = bitmap.width
+  canvas.height = bitmap.height
+  canvas.getContext('2d').drawImage(bitmap, 0, 0)
+  bitmap.close()
+  const pngBlob = await new Promise((res, rej) =>
+    canvas.toBlob(b => b ? res(b) : rej(new Error('canvas toBlob failed')), 'image/png')
+  )
+  return toBase64(pngBlob)
 }
 
 // ── Utility: copy text to clipboard ──────────────────────────────────────
