@@ -13,7 +13,8 @@
       <div class="mt-2 flex items-center gap-2">
         <span class="text-xs text-accent/40">{{ entry.created_at[:16].replace('T', ' ') }}</span>
         <button
-          onclick="copyText(this, {{ entry.content | tojson }})"
+          data-copy="{{ entry.content }}"
+          onclick="copyText(this, this.dataset.copy)"
           class="ml-auto text-xs text-accent/50 hover:text-mint transition px-2 py-0.5 rounded border border-border hover:border-mint/40"
         >Kopieren</button>
         <button
