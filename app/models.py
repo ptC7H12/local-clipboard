@@ -7,9 +7,10 @@ from pydantic import BaseModel, field_validator
 
 
 class EntryCreate(BaseModel):
-    type: Literal["text", "image"]
+    type: Literal["text", "image", "file"]
     content: Optional[str] = None
-    mime: Optional[Literal["image/png", "image/jpeg"]] = None
+    mime: Optional[str] = None
+    file_name: Optional[str] = None  # Original filename for file uploads
 
     @field_validator("content")
     @classmethod
@@ -20,16 +21,17 @@ class EntryCreate(BaseModel):
 
 class Entry(BaseModel):
     id: str
-    type: Literal["text", "image"]
-    content: Optional[str] = None      # Plaintext for text entries; None for images
-    image_path: Optional[str] = None   # Relative path: "images/{uuid}.{ext}"
+    type: Literal["text", "image", "file"]
+    content: Optional[str] = None      # Plaintext for text entries; None for images/files
+    image_path: Optional[str] = None   # Relative path: "images/{uuid}.{ext}" (images & files)
     thumbnail: Optional[str] = None    # Base64-encoded JPEG thumbnail (~15 KB)
     mime: Optional[str] = None
-    file_size: Optional[int] = None    # Original file size in bytes (images only)
+    file_size: Optional[int] = None    # Original file size in bytes
+    file_name: Optional[str] = None    # Original filename (file entries)
     created_at: str                    # ISO 8601 timestamp
 
 
 class EntryResponse(BaseModel):
     id: str
-    type: Literal["text", "image"]
+    type: Literal["text", "image", "file"]
     created_at: str

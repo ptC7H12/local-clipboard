@@ -1,37 +1,67 @@
 {% extends "base.html" %}
 
-{% block title %}/b/{{ slug }} — LAN Clipboard{% endblock %}
+{% block title %}/{{ prefix }}/{{ slug }} — LAN Clipboard{% endblock %}
 
 {% block body %}
 {# ── Full-page layout: sticky header + input + scrollable history ────────── #}
-<div class="flex flex-col h-screen max-w-[800px] mx-auto px-3 md:px-0">
+<div
+  class="flex flex-col h-screen max-w-[800px] mx-auto px-3 md:px-0"
+  x-data="dropZone('{{ prefix }}', '{{ slug }}', {{ key | tojson }}, {{ max_upload_mb | default(5) }})"
+  @dragover.prevent="onDragOver($event)"
+  @dragleave.prevent="onDragLeave($event)"
+  @drop.prevent="onDrop($event)"
+>
+
+  {# ── Drop overlay ─────────────────────────────────────────────────────── #}
+  <div
+    x-show="dragging"
+    class="fixed inset-0 z-50 bg-bg/90 flex items-center justify-center pointer-events-none"
+    style="display:none"
+  >
+    <div class="border-2 border-dashed border-mint rounded-2xl p-12 text-center">
+      <div class="text-4xl mb-3">&#128230;</div>
+      <p class="text-mint font-mono text-lg">Dateien hier ablegen</p>
+      <p class="text-accent/50 text-sm mt-1">Max. {{ max_upload_mb | default(5) }} MB pro Datei</p>
+    </div>
+  </div>
 
   {# ── Header ─────────────────────────────────────────────────────────────── #}
   <header class="sticky top-0 z-10 bg-bg border-b border-border py-3 flex items-center gap-3">
-    <a href="/" class="text-accent/40 hover:text-accent transition text-sm">←</a>
-    <span class="font-mono text-mint font-bold text-lg flex-1">/b/{{ slug }}</span>
+    <a href="/" class="text-accent/40 hover:text-accent transition text-sm">&larr;</a>
+    <span class="font-mono text-mint font-bold text-lg flex-1">
+      /{{ prefix }}/{{ slug }}
+      {% if is_shared | default(false) %}
+        <span class="text-xs text-accent/40 font-normal ml-2">Shared</span>
+        {% if ttl_hours %}
+          <span class="text-xs text-accent/30 font-normal">&middot; TTL {{ ttl_hours }}h</span>
+        {% endif %}
+      {% endif %}
+    </span>
 
-    {# Auth controls #}
-    <div x-data="authPanel('{{ slug }}', {{ key | tojson }}, {{ has_key | tojson }})" class="flex items-center gap-2">
+    {# Auth controls (hide key management for shared boards) #}
+    <div x-data="authPanel('{{ prefix }}', '{{ slug }}', {{ key | tojson }}, {{ has_key | tojson }}, {{ is_shared | default(false) | tojson }})" class="flex items-center gap-2">
 
-      {# Generate / Manage key button #}
+      {% if not is_shared | default(false) %}
+      {# Generate / Manage key button — only for /b/ boards #}
       <button
         @click="toggleKeyPanel()"
         class="text-xs border border-border rounded-lg px-3 py-1.5 hover:border-mint/50 hover:text-mint transition"
         :title="hasKey ? 'Key verwalten' : 'Board sichern'"
       >
-        <span x-text="hasKey ? '🔒 Key' : '🔓 Key'"></span>
+        <span x-text="hasKey ? '&#128274; Key' : '&#128275; Key'"></span>
       </button>
+      {% endif %}
 
       {# Copy URL button #}
       <button
         @click="copyURL()"
         class="text-xs border border-border rounded-lg px-3 py-1.5 hover:border-mint/50 hover:text-mint transition"
         title="URL kopieren"
-        x-text="urlCopied ? 'Kopiert ✓' : 'URL kopieren'"
+        x-text="urlCopied ? 'Kopiert &#10003;' : 'URL kopieren'"
       ></button>
 
-      {# Key panel #}
+      {% if not is_shared | default(false) %}
+      {# Key panel — only for /b/ boards #}
       <div
         x-show="showKeyPanel"
         @click.outside="showKeyPanel = false"
@@ -64,19 +94,20 @@
           </div>
         </template>
       </div>
+      {% endif %}
     </div>
   </header>
 
   {# ── Input area ──────────────────────────────────────────────────────────── #}
   <div class="sticky top-[57px] z-10 bg-bg pt-3 pb-2 border-b border-border">
-    <div x-data="inputArea('{{ slug }}', {{ key | tojson }})" class="relative">
+    <div x-data="inputArea('{{ prefix }}', '{{ slug }}', {{ key | tojson }}, {{ max_upload_mb | default(5) }})" class="relative">
       {# Upload overlay #}
       <div
         x-show="uploading"
         class="absolute inset-0 z-10 bg-bg/80 rounded-xl flex items-center justify-center"
         style="display:none"
       >
-        <span class="text-mint font-mono text-sm animate-pulse">Uploading…</span>
+        <span class="text-mint font-mono text-sm animate-pulse">Uploading&hellip;</span>
       </div>
 
       {# Error message #}
@@ -93,14 +124,14 @@
         @paste="handlePaste($event)"
         @keydown.ctrl.enter.prevent="submitText()"
         @keydown.meta.enter.prevent="submitText()"
-        placeholder="Text hier einfügen oder Screenshot pasten…"
+        placeholder="Text hier einfügen oder Screenshot pasten&hellip;"
         rows="3"
         autofocus
         class="w-full bg-card border border-border rounded-xl px-4 py-3 font-mono text-sm text-accent placeholder-accent/30 resize-none focus:outline-none focus:border-mint/60 transition"
       ></textarea>
 
       <div class="flex justify-between items-center mt-1.5">
-        <span class="text-xs text-accent/30">Strg+Enter zum Senden · Strg+V für Screenshot</span>
+        <span class="text-xs text-accent/30">Strg+Enter zum Senden &middot; Strg+V für Screenshot &middot; Drag&amp;Drop für Dateien</span>
         <button
           @click="submitText()"
           class="bg-mint text-bg text-sm font-semibold px-5 py-1.5 rounded-lg hover:bg-mint/80 transition disabled:opacity-50"
@@ -128,8 +159,84 @@
    Alpine.js Components
    ═══════════════════════════════════════════════════════════════════════════ #}
 <script>
+// ── Drop zone component ──────────────────────────────────────────────────
+function dropZone(prefix, slug, key, maxMB) {
+  return {
+    dragging: false,
+    dragCounter: 0,
+
+    get keyParam() {
+      return key ? '?key=' + encodeURIComponent(key) : ''
+    },
+
+    onDragOver(e) {
+      e.dataTransfer.dropEffect = 'copy'
+      this.dragging = true
+    },
+
+    onDragLeave(e) {
+      // Only hide when truly leaving the container
+      if (!e.currentTarget.contains(e.relatedTarget)) {
+        this.dragging = false
+      }
+    },
+
+    async onDrop(e) {
+      this.dragging = false
+      const files = e.dataTransfer.files
+      if (!files || files.length === 0) return
+
+      for (const file of files) {
+        if (file.size > maxMB * 1024 * 1024) {
+          showToast(`${file.name}: zu groß (max. ${maxMB} MB)`)
+          continue
+        }
+        try {
+          const base64 = await toBase64(file)
+          const isImage = file.type.startsWith('image/')
+          const payload = isImage
+            ? { type: 'image', content: base64, mime: file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png' }
+            : { type: 'file', content: base64, mime: file.type || 'application/octet-stream', file_name: file.name }
+
+          // For images, normalize to PNG if not JPEG
+          if (isImage && file.type !== 'image/jpeg') {
+            const pngBase64 = await imageToBase64Png(file)
+            payload.content = pngBase64
+            payload.mime = 'image/png'
+          }
+
+          const url = `/${prefix}/${slug}/entries${this.keyParam}`
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'HX-Request': 'true' },
+            body: JSON.stringify(payload),
+          })
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+            showToast(`${file.name}: ${err.detail || resp.statusText}`)
+            continue
+          }
+          const html = await resp.text()
+          const temp = document.createElement('div')
+          temp.innerHTML = html
+          const newEl = temp.firstElementChild
+          if (newEl && newEl.id && document.getElementById(newEl.id)) continue
+          const list = document.getElementById('history-list')
+          const empty = list.querySelector('p')
+          if (empty) empty.remove()
+          list.insertAdjacentHTML('afterbegin', html)
+          htmx.process(list.firstElementChild)
+          showToast(`${file.name} hochgeladen`)
+        } catch (err) {
+          showToast(`${file.name}: Upload fehlgeschlagen`)
+        }
+      }
+    },
+  }
+}
+
 // ── Input area component ──────────────────────────────────────────────────
-function inputArea(slug, key) {
+function inputArea(prefix, slug, key, maxMB) {
   return {
     uploading: false,
     errorMsg: '',
@@ -159,20 +266,15 @@ function inputArea(slug, key) {
       for (const item of items) {
         if (item.type.startsWith('image/')) {
           e.preventDefault()
-          // Read blob and type synchronously — DataTransferItem may be
-          // invalidated by the browser after any await.
           const blob = item.getAsFile()
           if (!blob) continue
-          if (blob.size > 5 * 1024 * 1024) {
-            this.errorMsg = 'Bild zu groß (max. 5 MB)'
+          if (blob.size > maxMB * 1024 * 1024) {
+            this.errorMsg = `Bild zu groß (max. ${maxMB} MB)`
             return
           }
           this.uploading = true
           this.errorMsg = ''
           try {
-            // Normalize to PNG via canvas — handles BMP, TIFF, WEBP, etc.
-            // that Windows clipboard may produce, and fixes browsers that
-            // clear item.type after the event ends.
             const base64 = await imageToBase64Png(blob)
             await this.postEntry({ type: 'image', content: base64, mime: 'image/png' })
           } catch (err) {
@@ -183,11 +285,10 @@ function inputArea(slug, key) {
           return
         }
       }
-      // No image found → normal text paste, do nothing
     },
 
     async postEntry(payload) {
-      const url = `/b/${slug}/entries${this.keyParam}`
+      const url = `/${prefix}/${slug}/entries${this.keyParam}`
       const resp = await fetch(url, {
         method: 'POST',
         headers: {
@@ -200,16 +301,12 @@ function inputArea(slug, key) {
         const err = await resp.json().catch(() => ({ detail: resp.statusText }))
         throw new Error(err.detail || resp.statusText)
       }
-      // SSE will handle DOM update for other clients.
-      // For the submitting client: SSE event may arrive before or after the HTTP response.
-      // Parse the fragment and only insert if not already in the DOM (dedup).
       const html = await resp.text()
       const temp = document.createElement('div')
       temp.innerHTML = html
       const newEl = temp.firstElementChild
       if (newEl && newEl.id && document.getElementById(newEl.id)) return  // SSE beat us
       const list = document.getElementById('history-list')
-      // Remove empty-state placeholder if present
       const empty = list.querySelector('p')
       if (empty) empty.remove()
       list.insertAdjacentHTML('afterbegin', html)
@@ -219,7 +316,7 @@ function inputArea(slug, key) {
 }
 
 // ── Auth panel component ──────────────────────────────────────────────────
-function authPanel(slug, key, hasKey) {
+function authPanel(prefix, slug, key, hasKey, isShared) {
   return {
     hasKey: hasKey,
     currentKey: key,
@@ -227,36 +324,36 @@ function authPanel(slug, key, hasKey) {
     urlCopied: false,
 
     get currentUrl() {
-      const base = window.location.origin + '/b/' + slug
+      const base = window.location.origin + '/' + prefix + '/' + slug
       return this.currentKey ? base + '?key=' + this.currentKey : base
     },
 
     toggleKeyPanel() {
+      if (isShared) return  // No key management for shared boards
       this.showKeyPanel = !this.showKeyPanel
     },
 
     async generateKey() {
       const keyParam = this.currentKey ? '?key=' + encodeURIComponent(this.currentKey) : ''
-      const resp = await fetch(`/b/${slug}/auth/generate${keyParam}`, { method: 'POST' })
+      const resp = await fetch(`/${prefix}/${slug}/auth/generate${keyParam}`, { method: 'POST' })
       if (!resp.ok) { alert('Fehler beim Generieren des Keys'); return }
       const data = await resp.json()
       this.currentKey = data.key
       this.hasKey = true
-      // Redirect to new URL with key
-      window.location.href = '/b/' + slug + '?key=' + encodeURIComponent(data.key)
+      window.location.href = '/' + prefix + '/' + slug + '?key=' + encodeURIComponent(data.key)
     },
 
     async removeKey() {
       if (!this.currentKey) return
       const resp = await fetch(
-        `/b/${slug}/auth?key=${encodeURIComponent(this.currentKey)}`,
+        `/${prefix}/${slug}/auth?key=${encodeURIComponent(this.currentKey)}`,
         { method: 'DELETE' }
       )
       if (!resp.ok) { alert('Fehler beim Entfernen des Keys'); return }
       this.hasKey = false
       this.currentKey = null
       this.showKeyPanel = false
-      window.location.href = '/b/' + slug
+      window.location.href = '/' + prefix + '/' + slug
     },
 
     async copyURL() {
@@ -283,7 +380,6 @@ function toBase64(blob) {
 }
 
 // ── Utility: normalize any image Blob to a PNG base64 string ─────────────
-// Uses createImageBitmap + canvas so BMP, TIFF, WEBP etc. all become PNG.
 async function imageToBase64Png(blob) {
   const bitmap = await createImageBitmap(blob)
   const canvas = document.createElement('canvas')
@@ -298,8 +394,6 @@ async function imageToBase64Png(blob) {
 }
 
 // ── Utility: copy text to clipboard ──────────────────────────────────────
-// navigator.clipboard requires a secure context (HTTPS / localhost).
-// Over plain HTTP in a LAN we fall back to the legacy execCommand approach.
 function copyToClipboard(text) {
   if (navigator.clipboard && window.isSecureContext) {
     return navigator.clipboard.writeText(text)
@@ -340,7 +434,7 @@ function showToast(msg) {
 function copyText(btn, text) {
   copyToClipboard(text).then(() => {
     const orig = btn.textContent
-    btn.textContent = 'Kopiert ✓'
+    btn.textContent = 'Kopiert \u2713'
     btn.classList.add('text-mint', 'border-mint/40')
     setTimeout(() => {
       btn.textContent = orig
@@ -354,17 +448,16 @@ function copyText(btn, text) {
 
 // ── SSE Realtime updates ──────────────────────────────────────────────────
 ;(function () {
+  const prefix = {{ prefix | tojson }}
   const slug = {{ slug | tojson }}
   const key  = {{ key | tojson }}
-  const streamUrl = `/b/${slug}/stream${key ? '?key=' + encodeURIComponent(key) : ''}`
+  const streamUrl = `/${prefix}/${slug}/stream${key ? '?key=' + encodeURIComponent(key) : ''}`
   const source = new EventSource(streamUrl)
 
   source.addEventListener('new_entry', (e) => {
     const list = document.getElementById('history-list')
-    // Remove empty-state placeholder
     const empty = list.querySelector('p')
     if (empty) empty.remove()
-    // Avoid duplicates (we may have added it optimistically via postEntry)
     const temp = document.createElement('div')
     temp.innerHTML = e.data
     const newEl = temp.firstElementChild
@@ -379,7 +472,7 @@ function copyText(btn, text) {
   })
 
   source.onerror = () => {
-    // EventSource reconnects automatically — no manual handling needed
+    // EventSource reconnects automatically
   }
 })()
 </script>

@@ -10,7 +10,7 @@ import secrets
 
 RESERVED_SLUGS = {
     "health", "docs", "redoc", "openapi.json", "static",
-    "favicon.ico", "api", "b",
+    "favicon.ico", "api", "b", "s", "shared",
 }
 SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{1,49}$")
 
@@ -23,3 +23,8 @@ def validate_slug(slug: str) -> bool:
 def generate_key() -> str:
     """Generate a 16-character URL-safe random key."""
     return secrets.token_urlsafe(12)  # 12 bytes → 16 base64url chars
+
+
+def generate_strong_key() -> str:
+    """Generate a 43-character URL-safe random key for shared boards."""
+    return secrets.token_urlsafe(32)  # 32 bytes → 43 base64url chars

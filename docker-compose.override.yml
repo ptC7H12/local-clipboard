@@ -6,3 +6,5 @@ services:
     volumes:
       - ./app:/app/app          # Live-reload on code changes
       - image_data:/app/data/images
+      # Für Host-Bind-Mount statt Named Volume die Zeile oben ersetzen durch:
+      # - ./data/images:/app/data/images
