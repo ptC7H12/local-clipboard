@@ -13,54 +13,29 @@
       </p>
     </div>
 
-    {# ── Aktive Boards ──────────────────────────────────────────────── #}
-    {% if boards %}
-    <div class="bg-card border border-border rounded-xl p-5 space-y-3">
-      <h2 class="text-mint font-semibold text-sm uppercase tracking-wider">Aktive Boards</h2>
-      <ul class="space-y-2">
-        {% for board in boards %}
-        <li>
-          <a
-            href="/b/{{ board.slug }}"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-bg border border-transparent hover:border-border transition group"
-          >
-            <span class="text-accent/40 group-hover:text-mint transition text-sm select-none">
-              {% if board.has_key %}&#128274;{% else %}/b/{% endif %}
-            </span>
-            <span class="font-mono text-accent group-hover:text-mint transition font-medium flex-1">{{ board.slug }}</span>
-            <span class="text-xs text-accent/40 tabular-nums">
-              {{ board.entry_count }} {% if board.entry_count == 1 %}Eintrag{% else %}Einträge{% endif %}
-            </span>
-            <span class="text-xs text-accent/30 tabular-nums hidden sm:block">
-              {% if board.last_activity %}
-                {{ board.last_activity.strftime('%d.%m.%Y %H:%M') }}
-              {% endif %}
-            </span>
-            <span class="text-accent/30 group-hover:text-mint transition text-sm">&rarr;</span>
-          </a>
-        </li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
+    {# ── Lokale Boards ─────────────────────────────────────────────── #}
+    <div class="bg-card border border-border rounded-xl p-5 space-y-4">
+      <h2 class="text-mint font-semibold text-sm uppercase tracking-wider">Lokale Boards</h2>
 
-    {# ── Neues Board ────────────────────────────────────────────────── #}
-    <div class="bg-card border border-border rounded-xl p-6 space-y-3">
-      <h2 class="text-mint font-semibold">Neues Board</h2>
-      <form onsubmit="goToBoard(event)" class="flex gap-2">
-        <span class="text-accent/50 self-center font-mono">/b/</span>
-        <input
-          id="slug-input"
-          type="text"
-          placeholder="mein-board"
-          pattern="[a-z0-9][a-z0-9_-]{1,49}"
-          title="Nur Kleinbuchstaben, Zahlen, Bindestrich und Unterstrich"
-          class="flex-1 bg-bg border border-border rounded-lg px-3 py-2 font-mono text-accent focus:outline-none focus:border-mint transition"
-          autofocus
-        />
+      {# Create form #}
+      <form onsubmit="goToBoard(event)" class="flex gap-2 items-end">
+        <div class="flex-1 min-w-[140px]">
+          <div class="flex items-center gap-1">
+            <span class="text-accent/50 font-mono text-sm">/b/</span>
+            <input
+              id="slug-input"
+              type="text"
+              placeholder="mein-board"
+              pattern="[a-z0-9][a-z0-9_-]{1,49}"
+              title="Nur Kleinbuchstaben, Zahlen, Bindestrich und Unterstrich"
+              class="flex-1 bg-bg border border-border rounded-lg px-3 py-2 font-mono text-sm text-accent focus:outline-none focus:border-mint transition"
+              autofocus
+            />
+          </div>
+        </div>
         <button
           type="submit"
-          class="bg-mint text-bg font-semibold px-4 py-2 rounded-lg hover:bg-mint/80 transition"
+          class="bg-mint text-bg text-sm font-semibold px-4 py-2 rounded-lg hover:bg-mint/80 transition"
         >
           Erstellen
         </button>
@@ -68,6 +43,31 @@
       <p class="text-accent/40 text-xs">
         Ein Board wird automatisch angelegt, sobald der erste Eintrag erstellt wird.
       </p>
+
+      {# Existing boards #}
+      {% if boards %}
+      <div class="space-y-2 pt-2 border-t border-border">
+        {% for board in boards %}
+        <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-bg border border-border group">
+          <span class="text-accent/40 text-sm select-none">
+            {% if board.has_key %}&#128274;{% else %}/b/{% endif %}
+          </span>
+          <a
+            href="/b/{{ board.slug }}"
+            class="font-mono text-accent hover:text-mint transition font-medium flex-1 truncate"
+          >{{ board.slug }}</a>
+          <span class="text-xs text-accent/40 tabular-nums">
+            {{ board.entry_count }} {% if board.entry_count == 1 %}Eintrag{% else %}Einträge{% endif %}
+          </span>
+          <span class="text-xs text-accent/30 tabular-nums hidden sm:block">
+            {% if board.last_activity %}
+              {{ board.last_activity.strftime('%d.%m.%Y %H:%M') }}
+            {% endif %}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
 
     {# ── Shared Boards ──────────────────────────────────────────────── #}
