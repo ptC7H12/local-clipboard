@@ -6,7 +6,7 @@
 {# ── Full-page layout: sticky header + input + scrollable history ────────── #}
 <div
   class="flex flex-col h-screen max-w-[800px] mx-auto px-3 md:px-0"
-  x-data="dropZone('{{ prefix }}', '{{ slug }}', {{ key | tojson }}, {{ max_upload_mb | default(5) }})"
+  x-data="dropZone('{{ prefix }}', '{{ slug }}', {% if key %}'{{ key }}'{% else %}null{% endif %}, {{ max_upload_mb | default(5) }})"
   @dragover.prevent="onDragOver($event)"
   @dragleave.prevent="onDragLeave($event)"
   @drop.prevent="onDrop($event)"
@@ -39,7 +39,7 @@
     </span>
 
     {# Auth controls (hide key management for shared boards) #}
-    <div x-data="authPanel('{{ prefix }}', '{{ slug }}', {{ key | tojson }}, {{ has_key | tojson }}, {{ is_shared | default(false) | tojson }})" class="flex items-center gap-2">
+    <div x-data="authPanel('{{ prefix }}', '{{ slug }}', {% if key %}'{{ key }}'{% else %}null{% endif %}, {{ has_key | tojson }}, {{ is_shared | default(false) | tojson }})" class="flex items-center gap-2">
 
       {% if not is_shared | default(false) %}
       {# Generate / Manage key button — only for /b/ boards #}
@@ -100,7 +100,7 @@
 
   {# ── Input area ──────────────────────────────────────────────────────────── #}
   <div class="sticky top-[57px] z-10 bg-bg pt-3 pb-2 border-b border-border">
-    <div x-data="inputArea('{{ prefix }}', '{{ slug }}', {{ key | tojson }}, {{ max_upload_mb | default(5) }})" class="relative">
+    <div x-data="inputArea('{{ prefix }}', '{{ slug }}', {% if key %}'{{ key }}'{% else %}null{% endif %}, {{ max_upload_mb | default(5) }})" class="relative">
       {# Upload overlay #}
       <div
         x-show="uploading"
