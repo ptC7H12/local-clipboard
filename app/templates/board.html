@@ -124,7 +124,7 @@
         @paste="handlePaste($event)"
         @keydown.ctrl.enter.prevent="submitText()"
         @keydown.meta.enter.prevent="submitText()"
-        placeholder="Text hier einfügen oder Screenshot pasten&hellip;"
+        placeholder="Text einfügen, Screenshot pasten oder Dateien per Drag&amp;Drop ablegen&hellip;"
         rows="3"
         autofocus
         class="w-full bg-card border border-border rounded-xl px-4 py-3 font-mono text-sm text-accent placeholder-accent/30 resize-none focus:outline-none focus:border-mint/60 transition"
@@ -228,6 +228,7 @@ function dropZone(prefix, slug, key, maxMB) {
           htmx.process(list.firstElementChild)
           showToast(`${file.name} hochgeladen`)
         } catch (err) {
+          console.error('Drop upload error:', file.name, err)
           showToast(`${file.name}: Upload fehlgeschlagen`)
         }
       }
@@ -278,6 +279,7 @@ function inputArea(prefix, slug, key, maxMB) {
             const base64 = await imageToBase64Png(blob)
             await this.postEntry({ type: 'image', content: base64, mime: 'image/png' })
           } catch (err) {
+            console.error('Paste upload error:', err)
             this.errorMsg = 'Upload fehlgeschlagen: ' + err.message
           } finally {
             this.uploading = false
