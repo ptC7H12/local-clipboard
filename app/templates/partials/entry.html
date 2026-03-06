@@ -1,5 +1,6 @@
 {# Einzelner Entry — wird sowohl per SSR in board.html als auch als HTMX-Fragment gerendert.
-   Kontext: entry (Entry), slug (str), key (str|None) #}
+   Kontext: entry (Entry), slug (str), key (str|None), prefix (str: "b" oder "s") #}
+{% set pfx = prefix | default("b") %}
 {% set key_param = ('?key=' + key) if key else '' %}
 <div
   id="entry-{{ entry.id }}"
@@ -17,37 +18,37 @@
           class="ml-auto text-xs text-accent/50 hover:text-mint transition px-2 py-0.5 rounded border border-border hover:border-mint/40"
         >Kopieren</button>
         <button
-          hx-delete="/b/{{ slug }}/entries/{{ entry.id }}{{ key_param }}"
+          hx-delete="/{{ pfx }}/{{ slug }}/entries/{{ entry.id }}{{ key_param }}"
           hx-confirm="Eintrag löschen?"
           hx-target="#entry-{{ entry.id }}"
           hx-swap="outerHTML"
           class="text-xs text-accent/30 hover:text-red-400 transition px-2 py-0.5 rounded border border-border hover:border-red-400/40"
-        >✕</button>
+        >&#10005;</button>
       </div>
       <pre class="font-mono text-sm text-accent whitespace-pre-wrap break-words leading-relaxed">{{ entry.content }}</pre>
     </div>
 
-  {% else %}
+  {% elif entry.type == "image" %}
     {# ── Image Entry ─────────────────────────────────────────────────── #}
     <div class="flex-shrink-0 w-7 h-7 rounded-md bg-mint/10 text-mint flex items-center justify-center text-sm font-bold select-none mt-0.5">&#128247;</div>
     <div class="flex-1 min-w-0" x-data="{ open: false }">
       <div class="flex items-center gap-2 mb-2">
         <span class="text-xs text-accent/40">{{ entry.created_at[11:16] }} Uhr</span>
         {% if entry.file_size %}
-          <span class="text-xs text-accent/30">· {{ (entry.file_size / 1024) | round(1) }} KB</span>
+          <span class="text-xs text-accent/30">&middot; {{ (entry.file_size / 1024) | round(1) }} KB</span>
         {% endif %}
         <a
-          href="/b/{{ slug }}/entries/{{ entry.id }}/download{{ key_param }}"
+          href="/{{ pfx }}/{{ slug }}/entries/{{ entry.id }}/download{{ key_param }}"
           class="ml-auto text-xs text-accent/50 hover:text-mint transition px-2 py-0.5 rounded border border-border hover:border-mint/40"
           title="Herunterladen"
         >&#11015; Download</a>
         <button
-          hx-delete="/b/{{ slug }}/entries/{{ entry.id }}{{ key_param }}"
+          hx-delete="/{{ pfx }}/{{ slug }}/entries/{{ entry.id }}{{ key_param }}"
           hx-confirm="Eintrag löschen?"
           hx-target="#entry-{{ entry.id }}"
           hx-swap="outerHTML"
           class="text-xs text-accent/30 hover:text-red-400 transition px-2 py-0.5 rounded border border-border hover:border-red-400/40"
-        >✕</button>
+        >&#10005;</button>
       </div>
 
       <div class="flex gap-3 items-start">
@@ -78,7 +79,7 @@
       >
         <div class="relative max-w-full max-h-full">
           <img
-            src="/b/{{ slug }}/entries/{{ entry.id }}/image{{ key_param }}"
+            src="/{{ pfx }}/{{ slug }}/entries/{{ entry.id }}/image{{ key_param }}"
             alt="Vollbild"
             class="max-w-[90vw] max-h-[90vh] rounded-xl border border-border object-contain"
             loading="lazy"
@@ -86,8 +87,42 @@
           <button
             @click="open = false"
             class="absolute top-2 right-2 text-white bg-black/60 rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/80 transition text-lg"
-          >✕</button>
+          >&#10005;</button>
         </div>
+      </div>
+    </div>
+
+  {% else %}
+    {# ── File Entry ──────────────────────────────────────────────────── #}
+    <div class="flex-shrink-0 w-7 h-7 rounded-md bg-mint/10 text-mint flex items-center justify-center text-sm font-bold select-none mt-0.5">&#128196;</div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs text-accent/40">{{ entry.created_at[11:16] }} Uhr</span>
+        {% if entry.file_size %}
+          <span class="text-xs text-accent/30">&middot;
+            {% if entry.file_size >= 1048576 %}
+              {{ (entry.file_size / 1048576) | round(1) }} MB
+            {% else %}
+              {{ (entry.file_size / 1024) | round(1) }} KB
+            {% endif %}
+          </span>
+        {% endif %}
+        <a
+          href="/{{ pfx }}/{{ slug }}/entries/{{ entry.id }}/download{{ key_param }}"
+          class="ml-auto text-xs text-accent/50 hover:text-mint transition px-2 py-0.5 rounded border border-border hover:border-mint/40"
+          title="Herunterladen"
+        >&#11015; Download</a>
+        <button
+          hx-delete="/{{ pfx }}/{{ slug }}/entries/{{ entry.id }}{{ key_param }}"
+          hx-confirm="Eintrag löschen?"
+          hx-target="#entry-{{ entry.id }}"
+          hx-swap="outerHTML"
+          class="text-xs text-accent/30 hover:text-red-400 transition px-2 py-0.5 rounded border border-border hover:border-red-400/40"
+        >&#10005;</button>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-border flex items-center justify-center text-accent/50 text-lg select-none">&#128196;</div>
+        <span class="font-mono text-sm text-accent truncate">{{ entry.file_name or 'Datei' }}</span>
       </div>
     </div>
   {% endif %}

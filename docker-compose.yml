@@ -11,6 +11,8 @@ services:
       - ENTRY_TTL_HOURS=48
       - MAX_ENTRIES_PER_BOARD=20
       - MAX_UPLOAD_SIZE_MB=5
+      - SHARED_BOARD_DEFAULT_TTL_HOURS=24
+      - RATE_LIMIT_PER_MINUTE=30
     volumes:
       - image_data:/app/data/images
     healthcheck:
